@@ -1,0 +1,184 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:validation="http://www.mulesoft.org/schema/mule/validation" xmlns:db="http://www.mulesoft.org/schema/mule/db"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:salesforce="http://www.mulesoft.org/schema/mule/salesforce" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/salesforce http://www.mulesoft.org/schema/mule/salesforce/current/mule-salesforce.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/validation http://www.mulesoft.org/schema/mule/validation/current/mule-validation.xsd">
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="0ff83c25-5ba0-471f-90e9-1c97f3900a45" >
+		<http:listener-connection host="0.0.0.0" port="8081" />
+	</http:listener-config>
+	<salesforce:sfdc-config name="Salesforce_Config" doc:name="Salesforce Config" doc:id="ce17696d-85b2-40ef-9798-fc9bfbf91565" >
+		<salesforce:cached-basic-connection username="monil.porwal@apisero.com" password="Mllp96#08" securityToken="yMDCajkvkCS4zBOFFE9bYDo2" />
+	</salesforce:sfdc-config>
+	<db:config name="Database_Config" doc:name="Database Config" doc:id="302c6f3a-b5a4-4346-a3c6-a511bf1d36e1" >
+		<db:my-sql-connection host="db4free.net" port="3306" user="monilporwal" password="Mllp96#08" database="monildb" />
+	</db:config>
+	<http:request-config name="HTTP_Request_configuration" doc:name="HTTP Request configuration" doc:id="2a0c9617-5f12-42fb-a3ad-da3c4d0a6503">
+		<http:request-connection protocol="HTTPS" host="us-zipcode.api.smartystreets.com"/>
+	</http:request-config>
+	<flow name="lazy_fashion_fetch" doc:id="7d7a4bbd-f848-4987-8c91-75ac73bcefb1" >
+		<http:listener doc:name="Listener" doc:id="3ea788b9-55e1-4583-b7e0-ef7ff6e0291a" config-ref="HTTP_Listener_config" path="/lazyflow"/>
+		<salesforce:query doc:name="Fetching the data" doc:id="59f6266b-30a5-4b27-bf49-9a3d6956d5a6" config-ref="Salesforce_Config">
+			<salesforce:salesforce-query >SELECT customer_email__c,customer_number__c FROM customer_info__c</salesforce:salesforce-query>
+		</salesforce:query>
+		<ee:transform doc:name="Transform Message" doc:id="48896897-3015-48e3-9df9-5494663ce21f" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow name="lazy_fashion_insert" doc:id="03d47fd1-f107-4d02-9d07-b871cc5e874d" >
+		<http:listener doc:name="Listener" doc:id="1b3cfa6a-cd60-4797-8a83-c72ab44fdc2d" config-ref="HTTP_Listener_config" path="/lazyadd"/>
+		<ee:transform doc:name="Transform Message" doc:id="5ab9e56b-a896-4b79-abda-d615282474f0" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+attributes.queryParams.Name]]></ee:set-payload>
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="email" ><![CDATA[%dw 2.0
+output application/json
+---
+attributes.queryParams.email]]></ee:set-variable>
+				<ee:set-variable variableName="zipcode" ><![CDATA[%dw 2.0
+output application/java
+---
+attributes.queryParams.zip]]></ee:set-variable>
+				<ee:set-variable variableName="Name" ><![CDATA[%dw 2.0
+output application/json
+---
+attributes.queryParams.Name]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<salesforce:create type="customer_info__c" doc:name="Create" doc:id="70b64bb6-d6c4-4ba2-8273-82a9739262c9" config-ref="Salesforce_Config">
+			<salesforce:records ><![CDATA[#[output application/java
+---
+[{
+	Name: vars.Name as String,
+	customer_email__c: vars.email as String,
+	zipcode__c: vars.zipcode as Number
+}]]]]></salesforce:records>
+		</salesforce:create>
+	</flow>
+	<flow name="lazy_fashion_update" doc:id="acad8988-0fdc-41da-8bd6-53c41a9451f4" >
+		<http:listener doc:name="Listener" doc:id="d1a36089-9058-4b93-801c-141bd179fe79" config-ref="HTTP_Listener_config" path="/lazyupdate"/>
+		<ee:transform doc:name="Transform Message" doc:id="08fc55c3-c1d5-4ae0-94d2-225ce5b3a317" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+attributes.queryParams.Name]]></ee:set-payload>
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="email" ><![CDATA[%dw 2.0
+output application/java
+---
+attributes.queryParams.email]]></ee:set-variable>
+				<ee:set-variable variableName="zipcode" ><![CDATA[%dw 2.0
+output application/json
+---
+attributes.queryParams.zip]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<salesforce:upsert type="customer_info__c" doc:name="Upsert" doc:id="6a32317e-3c1a-489e-aedf-b6d2efb98b57" config-ref="Salesforce_Config" externalIdFieldName="customer_email__c">
+			<salesforce:records ><![CDATA[#[output application/java
+---
+[{
+	Name: payload as String,
+	customer_email__c: vars.email as String,
+	zipcode__c: vars.zipcode as Number
+}]]]]></salesforce:records>
+		</salesforce:upsert>
+	</flow>
+	<flow name="lazy_fashionsFlow" doc:id="4e2dede1-0cd3-446c-afd1-9ccbe20e0b61" >
+		<scheduler doc:name="Scheduler" doc:id="3f9e1eb4-b425-418b-82ce-05e0136f9597" >
+			<scheduling-strategy >
+				<fixed-frequency frequency="3" timeUnit="MINUTES"/>
+			</scheduling-strategy>
+		</scheduler>
+		<salesforce:query doc:name="Fetch data for inserting to db" doc:id="936e9019-5c82-4149-859f-3c4acf9be6c7" config-ref="Salesforce_Config" >
+			<salesforce:salesforce-query >SELECT Name,customer_email__c,customer_number__c FROM customer_info__c</salesforce:salesforce-query>
+		</salesforce:query>
+		<db:bulk-insert doc:name="Bulk insert" doc:id="7034eac6-4b76-4e3d-a864-6aaf6499171d" config-ref="Database_Config">
+			<db:bulk-input-parameters ><![CDATA[#[output application/json
+---
+payload map ( payload01 , indexOfPayload01 ) -> {
+	name: payload01.Name,
+	email: payload01.customer_email__c,
+	sr_no: payload01.customer_number__c
+}]]]></db:bulk-input-parameters>
+			<db:sql >INSERT INTO lazy_fashion_data (sr_no, name, email) VALUES (:sr_no, :name, :email)</db:sql>
+		</db:bulk-insert>
+	</flow>
+	<flow name="lazy_fashionsFlow1" doc:id="f046c261-3e59-4f20-8cc5-dbb208f7f6cd" initialState="stopped">
+		<scheduler doc:name="Scheduler" doc:id="0cc0d50a-6651-4009-9888-da447284ee1b" >
+			<scheduling-strategy >
+				<fixed-frequency frequency="3" timeUnit="SECONDS"/>
+			</scheduling-strategy>
+		</scheduler>
+		<db:delete doc:name="Delete" doc:id="322e51ed-842b-486a-a338-72ca951a3383" config-ref="Database_Config">
+			<db:sql >DELETE FROM lazy_fashion_data;</db:sql>
+		</db:delete>
+		<logger level="INFO" doc:name="Logger" doc:id="ddaad078-7cd9-45e1-bfab-fbe7c7ade56d" message="Data deleted successfully"/>
+	</flow>
+	<flow name="Copy_of_lazy_fashion_insert" doc:id="d2942044-81bf-4a19-ab73-dd9d1f5c52ab" >
+		<http:listener doc:name="Copy_of_Listener" doc:id="1aa6ddaf-0794-4bd2-a6c5-78a49e971131" config-ref="HTTP_Listener_config" path="/lazyadd1" />
+		<ee:transform doc:name="Copy_of_Transform Message" doc:id="5be9bee9-8a7a-420c-b960-de19fa902908" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+attributes.queryParams.Name]]></ee:set-payload>
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="Name" ><![CDATA[%dw 2.0
+output application/json
+---
+attributes.queryParams.Name]]></ee:set-variable>
+				<ee:set-variable variableName="email" ><![CDATA[%dw 2.0
+output application/json
+---
+attributes.queryParams.email]]></ee:set-variable>
+				<ee:set-variable variableName="zipcode" ><![CDATA[%dw 2.0
+output application/java
+---
+attributes.queryParams.zip]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<http:request method="GET" doc:name="Request" doc:id="0bd21390-f2cf-4c93-b374-9600c48f52e6" config-ref="HTTP_Request_configuration" path="/lookup">
+			<http:query-params><![CDATA[#[output application/java
+---
+{
+	"auth-id" : "ecea6130-3bb5-6bd9-61ec-862afbc34f09",
+	"auth-token" : "GWooHraNo2wCihFKZ3y3",
+	"zipcode" : vars.zipcode
+}]]]></http:query-params>
+		</http:request>
+		<ee:transform doc:name="Transform Message" doc:id="51e2b2e3-81ad-4d7f-b57e-ee9ab2ffd7f7">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/java
+---
+{
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<salesforce:create type="customer_info__c" doc:name="Copy_of_Create" doc:id="b3146c2c-038d-4e36-9274-fea8c0c3a4e9" config-ref="Salesforce_Config" >
+			<salesforce:records ><![CDATA[#[output application/java
+---
+[{
+	Name: vars.Name as String,
+	customer_email__c: vars.email as String,
+	zipcode__c: vars.zipcode as Number
+}]]]]></salesforce:records>
+		</salesforce:create>
+	</flow>
+</mule>
